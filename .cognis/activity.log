@@ -8,3 +8,4 @@
 2024-10-13T18:12:12  style(engine): memoize repeated lookups
 2024-10-31T13:29:19  build(tests): improve the demo scenario
 2024-11-18T08:46:26  chore(detect): add color + severity icons
+2024-12-06T15:03:33  refactor(cli): short-circuit on first critical

@@ -11,3 +11,4 @@
 2024-12-06T15:03:33  refactor(cli): short-circuit on first critical
 2024-12-23T10:20:40  fix: handle empty input gracefully
 2025-01-10T17:37:47  build(docs): guard against ReDoS in patterns
+2025-01-28T12:54:54  chore(cache): add a dry-run flag

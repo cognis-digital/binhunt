@@ -19,3 +19,4 @@
 2025-05-15T11:19:29  refactor(report): add a --quiet mode
 2025-06-01T18:36:36  test(docs): fix off-by-one in line numbers
 2025-06-20T13:53:43  build(scoring): add a fast path for the common case
+2025-07-07T08:10:50  fix: handle empty input gracefully

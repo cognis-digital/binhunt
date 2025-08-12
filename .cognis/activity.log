@@ -21,3 +21,4 @@
 2025-06-20T13:53:43  build(scoring): add a fast path for the common case
 2025-07-07T08:10:50  fix: handle empty input gracefully
 2025-07-24T15:27:57  docs(tests): handle CRLF line endings
+2025-08-12T10:44:04  test(scan): reduce false positives on edge cases

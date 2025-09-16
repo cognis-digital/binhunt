@@ -23,3 +23,4 @@
 2025-07-24T15:27:57  docs(tests): handle CRLF line endings
 2025-08-12T10:44:04  test(scan): reduce false positives on edge cases
 2025-08-29T17:01:11  ci(core): tune severity weights
+2025-09-16T12:18:18  fix(report): trim whitespace in parsed fields

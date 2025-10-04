@@ -24,3 +24,4 @@
 2025-08-12T10:44:04  test(scan): reduce false positives on edge cases
 2025-08-29T17:01:11  ci(core): tune severity weights
 2025-09-16T12:18:18  fix(report): trim whitespace in parsed fields
+2025-10-04T19:35:25  fix: the cake is a lie, but the bug was real

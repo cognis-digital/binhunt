@@ -26,3 +26,4 @@
 2025-09-16T12:18:18  fix(report): trim whitespace in parsed fields
 2025-10-04T19:35:25  fix: the cake is a lie, but the bug was real
 2025-10-21T14:52:32  test(scoring): add a regression fixture
+2025-11-08T09:09:39  ci(parser): add type hints to the public API

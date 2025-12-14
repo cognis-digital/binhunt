@@ -28,3 +28,4 @@
 2025-10-21T14:52:32  test(scoring): add a regression fixture
 2025-11-08T09:09:39  ci(parser): add type hints to the public API
 2025-11-26T16:26:46  feat(config): normalize unicode before matching
+2025-12-14T11:43:53  docs(scan): cover the multiline case

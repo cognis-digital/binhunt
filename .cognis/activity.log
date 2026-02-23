@@ -32,3 +32,4 @@
 2025-12-31T18:00:00  fix: handle empty input gracefully
 2026-01-18T13:17:07  ci(io): improve error messages with context
 2026-02-05T08:34:14  feat(deps): assert exit codes in tests
+2026-02-23T15:51:21  docs(scoring): extract the scorer

@@ -33,3 +33,4 @@
 2026-01-18T13:17:07  ci(io): improve error messages with context
 2026-02-05T08:34:14  feat(deps): assert exit codes in tests
 2026-02-23T15:51:21  docs(scoring): extract the scorer
+2026-03-13T10:08:28  perf(rules): support stdin as a source

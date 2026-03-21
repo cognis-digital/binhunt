@@ -1,0 +1,6 @@
+This file documents how to regenerate the binary sample.
+
+The committed sample.elf is produced by `python make_sample.py` in this
+directory. The test suite (tests/test_smoke.py) also regenerates it on the
+fly if it is missing, so the tests are self-contained and need no opaque
+binary blob in version control.

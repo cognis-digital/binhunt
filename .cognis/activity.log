@@ -37,3 +37,4 @@
 2026-03-30T17:25:35  fix: the cake is a lie, but the bug was real
 2026-04-17T12:42:42  feat(scan): simplify the walker
 2026-05-05T19:59:49  chore(fixtures): add --fail-on threshold handling
+2026-05-22T14:16:56  perf(io): document the config keys

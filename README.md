@@ -22,7 +22,7 @@ binhunt scan .            # → prioritized findings in seconds
 
 ## Contents
 
-- [Why binhunt?](#why) · [Features](#features) · [Quick start](#quick-start) · [Example](#example) · [How it compares](#how-it-compares) · [Integrations](#integrations) · [Install anywhere](#install-anywhere) · [Related](#related) · [Contributing](#contributing)
+- [Why binhunt?](#why) · [Features](#features) · [Quick start](#quick-start) · [Example](#example) · [Architecture](#architecture) · [AI stack](#ai-stack) · [How it compares](#how-it-compares) · [Integrations](#integrations) · [Install anywhere](#install-anywhere) · [Related](#related) · [Contributing](#contributing)
 
 <a name="why"></a>
 ## Why binhunt?
@@ -72,6 +72,34 @@ $ binhunt scan .
 
   2 findings · risk score 5 · 38ms
 ```
+
+<div align="right"><a href="#top">↑ back to top</a></div>
+
+<a name="architecture"></a>
+## Architecture
+
+```mermaid
+flowchart LR
+  A[Input: file / dir / API] --> B[Collectors]
+  B --> C[Rules / Analyzers]
+  C --> D[Scorer]
+  D --> E{Reporters}
+  E --> F[Table]
+  E --> G[JSON / SARIF]
+  E --> H[MCP tool -. drives .-> AI agents]
+```
+
+<div align="right"><a href="#top">↑ back to top</a></div>
+
+<a name="ai-stack"></a>
+## Use it from any AI stack
+
+`binhunt` is interoperable with every popular way of using AI:
+
+- **MCP server** — `binhunt mcp` (Claude Desktop, Cursor, Cognis.Studio, [uncensored-fleet](https://github.com/cognis-digital/uncensored-fleet))
+- **OpenAI-compatible / JSON** — pipe `binhunt scan . --format json` into any agent or LLM
+- **LangChain · CrewAI · AutoGen · LlamaIndex** — wrap the CLI/JSON as a tool in one line
+- **CI / scripts** — exit codes + SARIF for non-AI pipelines
 
 <div align="right"><a href="#top">↑ back to top</a></div>
 

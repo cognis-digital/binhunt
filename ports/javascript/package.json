@@ -1,0 +1,10 @@
+{
+  "name": "@cognis/binhunt",
+  "version": "0.2.0",
+  "description": "JavaScript port of binhunt (Cognis Neural Suite)",
+  "bin": {
+    "binhunt": "index.js"
+  },
+  "license": "LicenseRef-COCL-1.0",
+  "type": "module"
+}

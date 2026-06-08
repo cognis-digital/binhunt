@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: binhunt, labels: { app: binhunt } }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: binhunt } }
+  template:
+    metadata: { labels: { app: binhunt } }
+    spec:
+      containers:
+        - name: binhunt
+          image: ghcr.io/cognis-digital/binhunt:latest
+          ports: [{ containerPort: 8000 }]
+          resources:
+            requests: { cpu: "50m", memory: "64Mi" }
+            limits: { cpu: "500m", memory: "256Mi" }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: binhunt }
+spec:
+  selector: { app: binhunt }
+  ports: [{ port: 80, targetPort: 8000 }]

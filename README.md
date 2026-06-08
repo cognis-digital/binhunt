@@ -127,7 +127,17 @@ Pipes into your stack: **SARIF** for code-scanning, **JSON** for anything, an **
 <div align="right"><a href="#top">↑ back to top</a></div>
 
 <a name="install-anywhere"></a>
-## Install anywhere
+## Install — every way, every platform
+
+```bash
+pip install "git+https://github.com/cognis-digital/binhunt.git"    # pip (works today)
+pipx install "git+https://github.com/cognis-digital/binhunt.git"   # isolated CLI
+uv tool install "git+https://github.com/cognis-digital/binhunt.git" # uv
+pip install cognis-binhunt                                          # PyPI (when published)
+docker run --rm ghcr.io/cognis-digital/binhunt:latest --help        # Docker
+brew install cognis-digital/tap/binhunt                             # Homebrew tap
+curl -fsSL https://raw.githubusercontent.com/cognis-digital/binhunt/main/install.sh | sh
+```
 
 | Linux | macOS | Windows | Docker | Cloud |
 |---|---|---|---|---|

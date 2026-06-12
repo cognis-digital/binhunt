@@ -16,7 +16,7 @@
 </div>
 
 ```bash
-pip install cognis-binhunt
+pip install "git+https://github.com/cognis-digital/binhunt.git"
 binhunt scan .            # → prioritized findings in seconds
 ```
 
@@ -53,7 +53,7 @@ Pairs DIE-style packer detection with a baseline-diff workflow so studios can de
 ## Quick start
 
 ```bash
-pip install cognis-binhunt
+pip install "git+https://github.com/cognis-digital/binhunt.git"
 binhunt --version
 binhunt scan .                       # scan current project
 binhunt scan . --format json         # machine-readable

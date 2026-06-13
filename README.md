@@ -20,6 +20,33 @@ pip install cognis-binhunt
 binhunt scan .            # → prioritized findings in seconds
 ```
 
+## Usage — step by step
+
+`binhunt` fingerprints a binary (format/arch/hashes/entropy/sections), flags packers, and diffs against a known-good baseline to detect tampering.
+
+1. **Install** (Python 3.10+):
+   ```bash
+   pip install -e .            # or: pipx install binhunt
+   ```
+2. **Scan a binary** for packers, entropy, and section layout:
+   ```bash
+   binhunt scan ./client.exe
+   ```
+3. **Record a known-good baseline, then verify a downloaded copy**:
+   ```bash
+   binhunt baseline ./good/client.exe -o baseline.json
+   binhunt diff ./downloaded/client.exe --baseline baseline.json
+   ```
+4. **Read the output** as JSON (e.g. the worst severity, for gating):
+   ```bash
+   binhunt scan ./client.exe --format json | jq .max_severity
+   ```
+5. **Gate CI on tampering** — exit `2` on suspicious/mismatched findings (medium+), `0` when clean, `1` on error:
+   ```yaml
+   - run: pip install -e . && binhunt diff ./client.exe --baseline baseline.json
+   ```
+
+
 ## Contents
 
 - [Why binhunt?](#why) · [Features](#features) · [Quick start](#quick-start) · [Example](#example) · [Architecture](#architecture) · [AI stack](#ai-stack) · [How it compares](#how-it-compares) · [Integrations](#integrations) · [Install anywhere](#install-anywhere) · [Related](#related) · [Contributing](#contributing)

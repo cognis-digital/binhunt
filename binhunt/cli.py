@@ -85,13 +85,18 @@ def _cmd_scan(args) -> int:
 def _cmd_baseline(args) -> int:
     try:
         base = build_baseline(args.files)
-    except OSError as e:
+    except (OSError, ValueError) as e:
         print(f"error: {e}", file=sys.stderr)
         return 1
     text = json.dumps(base, indent=2)
     if args.output:
-        with open(args.output, "w", encoding="utf-8") as fh:
-            fh.write(text)
+        try:
+            with open(args.output, "w", encoding="utf-8") as fh:
+                fh.write(text)
+        except OSError as e:
+            print(f"error: cannot write baseline to {args.output!r}: {e}",
+                  file=sys.stderr)
+            return 1
         print(f"wrote baseline with {len(base['entries'])} entr"
               f"{'y' if len(base['entries']) == 1 else 'ies'} to {args.output}")
     else:
@@ -108,6 +113,9 @@ def _cmd_diff(args) -> int:
         return 1
     except json.JSONDecodeError as e:
         print(f"error: invalid baseline JSON: {e}", file=sys.stderr)
+        return 1
+    except ValueError as e:
+        print(f"error: {e}", file=sys.stderr)
         return 1
     findings = diff_baseline(r, base, key=args.key)
     if args.format == "json":
@@ -166,7 +174,14 @@ def main(argv=None) -> int:
     if not getattr(args, "cmd", None):
         parser.print_help()
         return 1
-    return args.func(args)
+    try:
+        return args.func(args)
+    except KeyboardInterrupt:
+        print("\ninterrupted", file=sys.stderr)
+        return 1
+    except Exception as e:  # pragma: no cover
+        print(f"error: unexpected failure: {e}", file=sys.stderr)
+        return 1
 
 
 if __name__ == "__main__":

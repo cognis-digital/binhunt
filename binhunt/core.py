@@ -116,7 +116,12 @@ def fuzzy_similarity(a: str, b: str) -> float:
         return 0.0
     if na != nb or not ra:
         return 0.0
-    n = int(na)
+    try:
+        n = int(na)
+    except ValueError:
+        return 0.0
+    if n <= 0:
+        return 0.0
     ba = [ra[i:i + 8] for i in range(0, len(ra), 8)]
     bb = [rb[i:i + 8] for i in range(0, len(rb), 8)]
     if len(ba) != n or len(bb) != n:
@@ -342,8 +347,23 @@ def fingerprint(data: bytes) -> dict:
 
 
 def scan_file(path: str) -> ScanResult:
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"No such file: {path!r}")
+    if not os.path.isfile(path):
+        raise ValueError(f"Not a regular file: {path!r}")
     with open(path, "rb") as fh:
         data = fh.read()
+    if len(data) == 0:
+        return ScanResult(
+            path=path, size=0, fmt="unknown", arch="unknown",
+            sha256=hashlib.sha256(b"").hexdigest(),
+            md5=hashlib.md5(b"").hexdigest(),
+            fuzzy="0:",
+            overall_entropy=0.0,
+            sections=[],
+            findings=[Finding("EMPTY_FILE", "info", "Empty file",
+                              "File has zero bytes; no binary analysis possible.")],
+        )
 
     fmt = detect_format(data)
     fp = fingerprint(data)
@@ -404,7 +424,14 @@ def scan_file(path: str) -> ScanResult:
 # ---------------------------------------------------------------------------
 
 def build_baseline(paths) -> dict:
-    """Build a known-good baseline dict from one or more files."""
+    """Build a known-good baseline dict from one or more files.
+
+    Raises:
+        ValueError: if *paths* is empty.
+    """
+    paths = list(paths)
+    if not paths:
+        raise ValueError("build_baseline requires at least one file path.")
     entries = {}
     for p in paths:
         r = scan_file(p)
@@ -422,12 +449,36 @@ def build_baseline(paths) -> dict:
 
 
 def load_baseline(path: str) -> dict:
+    """Load and validate a baseline JSON file.
+
+    Raises:
+        FileNotFoundError: if *path* does not exist.
+        json.JSONDecodeError: if the file is not valid JSON.
+        ValueError: if the JSON is valid but is not a binhunt baseline dict.
+    """
     with open(path, "r", encoding="utf-8") as fh:
-        return json.load(fh)
+        data = json.load(fh)
+    if not isinstance(data, dict):
+        raise ValueError(
+            f"Baseline file {path!r} is not a JSON object; "
+            "expected a dict produced by 'binhunt baseline'.")
+    if "entries" not in data or not isinstance(data.get("entries"), dict):
+        raise ValueError(
+            f"Baseline file {path!r} is missing the 'entries' key or it is not "
+            "a dict; the file may be corrupt or not a binhunt baseline.")
+    return data
 
 
 def diff_baseline(result: ScanResult, baseline: dict, key: Optional[str] = None) -> list:
-    """Compare a scan result against a baseline entry. Returns list[Finding]."""
+    """Compare a scan result against a baseline entry. Returns list[Finding].
+
+    Raises:
+        TypeError: if *baseline* is not a dict.
+    """
+    if not isinstance(baseline, dict):
+        raise TypeError(
+            f"baseline must be a dict (got {type(baseline).__name__!r}); "
+            "use load_baseline() to load from a file.")
     findings = []
     entries = baseline.get("entries", {})
     if key is None:

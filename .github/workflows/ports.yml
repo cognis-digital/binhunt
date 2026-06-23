@@ -1,0 +1,49 @@
+name: ports
+on:
+  push:
+    paths:
+      - "ports/**"
+      - ".github/workflows/ports.yml"
+  pull_request:
+    paths:
+      - "ports/**"
+      - ".github/workflows/ports.yml"
+permissions:
+  contents: read
+
+jobs:
+  javascript:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Smoke test (Node)
+        run: node --test ports/javascript/test.js
+
+  go:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.21"
+      - name: Build + test (Go)
+        working-directory: ports/go
+        run: |
+          go build ./...
+          go test ./...
+          go run . ../../demos/01-basic/sample.elf || test $? -eq 2
+
+  rust:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build + test (Rust)
+        working-directory: ports/rust
+        run: |
+          cargo build --release
+          cargo test
+          cargo run --release -- ../../demos/01-basic/sample.elf || test $? -eq 2

@@ -24,15 +24,20 @@ This guide lists the supported integration surfaces. Where a surface is marked
 
 ## Quick examples
 
+Global flags (`--format`, `--fail-on`) precede the subcommand; output goes to stdout.
+
 ```bash
 # CI gate (GitHub Actions, GitLab CI, Jenkins, etc.)
-<tool> scan . --format sarif --out results.sarif --fail-on high
+binhunt --format sarif --fail-on high scan ./client.exe > results.sarif
 
 # Stream findings to a webhook / SIEM forwarder
-<tool> scan . --format json | python integrations/webhook.py --url "$COGNIS_WEBHOOK_URL"
+binhunt --format json scan ./client.exe | python integrations/webhook.py --url "$COGNIS_WEBHOOK_URL"
+
+# Forward to STIX/MISP/Sigma/Splunk/Slack via cognis-connect (optional [connect] extra)
+binhunt --format json scan ./client.exe | binhunt-emit --to sigma
 
 # Use from an AI agent over MCP
-<tool> mcp
+binhunt mcp
 ```
 
 ## Configuration

@@ -20,6 +20,32 @@ from dataclasses import dataclass, field, asdict
 from typing import Optional
 
 # ---------------------------------------------------------------------------
+# Identity
+# ---------------------------------------------------------------------------
+
+TOOL_NAME = "binhunt"
+
+
+def _read_version() -> str:
+    """Read the repo VERSION file if present, else fall back."""
+    try:
+        here = os.path.dirname(os.path.abspath(__file__))
+        vf = os.path.join(os.path.dirname(here), "VERSION")
+        with open(vf, "r", encoding="utf-8") as fh:
+            v = fh.read().strip()
+        # normalise to MAJOR.MINOR.PATCH for callers that assert two dots
+        if v and v.count(".") == 2:
+            return v
+        if v and v.count(".") == 1:
+            return v + ".0"
+    except OSError:
+        pass
+    return "0.1.1"
+
+
+TOOL_VERSION = _read_version()
+
+# ---------------------------------------------------------------------------
 # Data model
 # ---------------------------------------------------------------------------
 
@@ -341,10 +367,8 @@ def fingerprint(data: bytes) -> dict:
     }
 
 
-def scan_file(path: str) -> ScanResult:
-    with open(path, "rb") as fh:
-        data = fh.read()
-
+def scan_bytes(data: bytes, path: str = "<bytes>") -> ScanResult:
+    """Scan an in-memory buffer (no file I/O). Used by scan_file and tests."""
     fmt = detect_format(data)
     fp = fingerprint(data)
     arch, sections = section_entropies(data, fmt)
@@ -362,7 +386,6 @@ def scan_file(path: str) -> ScanResult:
         sections=sections,
     )
 
-    # --- findings ---
     if fmt == "unknown":
         result.findings.append(Finding(
             "FMT_UNKNOWN", "info", "Unrecognized binary format",
@@ -375,20 +398,17 @@ def scan_file(path: str) -> ScanResult:
             "PACKER", sev, f"Packer/obfuscator detected: {p}",
             f"Marker for {p} found via section name or signature."))
 
-    # high overall entropy with no declared packer = suspicious
     if overall >= 7.2 and not packers and fmt != "unknown":
         result.findings.append(Finding(
             "HIGH_ENTROPY", "medium", "High overall entropy",
             f"Entropy {overall} bits/byte suggests packing/encryption."))
 
-    # per-section anomalies
     for s in sections:
         if s["entropy"] >= 7.4 and s["size"] >= 1024:
             result.findings.append(Finding(
                 "SECTION_ENTROPY", "medium",
                 f"High-entropy section: {s['name'] or '<unnamed>'}",
                 f"entropy={s['entropy']} size={s['size']}; possible packed payload."))
-        # executable code sections are normally named; blank/odd names are a flag
         if fmt == "PE" and s["name"] and not s["name"].startswith(".") \
                 and s["name"].lower() not in _PACKER_SECTIONS:
             result.findings.append(Finding(
@@ -397,6 +417,12 @@ def scan_file(path: str) -> ScanResult:
                 "Standard PE sections begin with '.'; custom name may indicate tooling."))
 
     return result
+
+
+def scan_file(path: str) -> ScanResult:
+    with open(path, "rb") as fh:
+        data = fh.read()
+    return scan_bytes(data, path=path)
 
 
 # ---------------------------------------------------------------------------
@@ -480,3 +506,86 @@ def diff_baseline(result: ScanResult, baseline: dict, key: Optional[str] = None)
                 "SECTION_REMOVED", "medium", f"Section '{name or '<unnamed>'}' missing",
                 "Baseline section absent in current binary."))
     return findings
+
+
+# ---------------------------------------------------------------------------
+# Output emitters: JSON / SARIF 2.1.0 / CSV
+# ---------------------------------------------------------------------------
+
+# Map binhunt severity -> SARIF result level + a numeric security-severity.
+_SARIF_LEVEL = {"info": "note", "low": "note", "medium": "warning",
+                "high": "error", "critical": "error"}
+_SARIF_SEC = {"info": "0.0", "low": "3.0", "medium": "5.5",
+              "high": "8.0", "critical": "9.5"}
+
+TOOL_INFO_URI = "https://github.com/cognis-digital/binhunt"
+
+
+def to_json(result: ScanResult) -> str:
+    """Serialize a ScanResult to pretty JSON (stable public API)."""
+    return json.dumps(result.to_dict(), indent=2)
+
+
+def scan(path: str) -> ScanResult:
+    """Alias for scan_file — accepts a path, returns a ScanResult."""
+    return scan_file(path)
+
+
+def findings_to_sarif(findings, path: str, tool_version: str = "0") -> dict:
+    """Build a SARIF 2.1.0 log for a list of Finding against one artifact.
+
+    SARIF is GitHub code-scanning's native format, so binhunt output can be
+    uploaded straight into the Security tab via upload-sarif.
+    """
+    # Distinct rule metadata keyed by finding id.
+    rules = {}
+    results = []
+    for f in findings:
+        if f.id not in rules:
+            rules[f.id] = {
+                "id": f.id,
+                "name": f.id.title().replace("_", ""),
+                "shortDescription": {"text": f.title},
+                "defaultConfiguration": {"level": _SARIF_LEVEL.get(f.severity, "note")},
+                "properties": {"security-severity": _SARIF_SEC.get(f.severity, "0.0")},
+            }
+        results.append({
+            "ruleId": f.id,
+            "level": _SARIF_LEVEL.get(f.severity, "note"),
+            "message": {"text": f"{f.title}: {f.detail}"},
+            "locations": [{
+                "physicalLocation": {
+                    "artifactLocation": {"uri": path.replace("\\", "/")}
+                }
+            }],
+            "properties": {"severity": f.severity},
+        })
+    return {
+        "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+        "version": "2.1.0",
+        "runs": [{
+            "tool": {"driver": {
+                "name": "binhunt",
+                "informationUri": TOOL_INFO_URI,
+                "version": str(tool_version),
+                "rules": list(rules.values()),
+            }},
+            "results": results,
+        }],
+    }
+
+
+def scan_to_sarif(result: ScanResult, tool_version: str = "0") -> dict:
+    return findings_to_sarif(result.findings, result.path, tool_version)
+
+
+def findings_to_csv(findings, path: str) -> str:
+    """Emit findings as RFC-4180 CSV (path,id,severity,title,detail)."""
+    import csv
+    import io
+    buf = io.StringIO()
+    w = csv.writer(buf, lineterminator="\n")
+    w.writerow(["path", "id", "severity", "title", "detail"])
+    for f in findings:
+        w.writerow([path, f.id, f.severity, f.title, f.detail])
+    return buf.getvalue()

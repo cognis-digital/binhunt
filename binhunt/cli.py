@@ -22,6 +22,8 @@ from .core import (
     build_baseline,
     load_baseline,
     diff_baseline,
+    findings_to_sarif,
+    findings_to_csv,
     SEVERITY_ORDER,
 )
 
@@ -62,11 +64,33 @@ def _print_scan_table(r) -> None:
     print(f"verdict   : {r.max_severity().upper()}")
 
 
-def _findings_exit(findings) -> int:
+def _findings_exit(findings, fail_on: str = "medium") -> int:
+    """Exit 2 when the worst finding meets/exceeds the --fail-on threshold."""
     worst = 0
     for f in findings:
         worst = max(worst, SEVERITY_ORDER.get(f.severity, 0))
-    return 2 if worst >= SEVERITY_ORDER["medium"] else 0
+    threshold = SEVERITY_ORDER.get(fail_on, SEVERITY_ORDER["medium"])
+    return 2 if worst >= threshold else 0
+
+
+def _emit_findings(fmt, result_or_none, findings, path, sha256=None):
+    """Render findings in the requested machine format (json/sarif/csv)."""
+    if fmt == "sarif":
+        print(json.dumps(findings_to_sarif(findings, path, TOOL_VERSION), indent=2))
+    elif fmt == "csv":
+        print(findings_to_csv(findings, path), end="")
+    elif fmt == "json":
+        if result_or_none is not None:
+            print(json.dumps(result_or_none.to_dict(), indent=2))
+        else:
+            print(json.dumps({
+                "file": path,
+                "sha256": sha256,
+                "findings": [f.to_dict() for f in findings],
+                "max_severity": max(
+                    (f.severity for f in findings),
+                    key=lambda s: SEVERITY_ORDER.get(s, 0), default="info"),
+            }, indent=2))
 
 
 def _cmd_scan(args) -> int:
@@ -75,11 +99,11 @@ def _cmd_scan(args) -> int:
     except OSError as e:
         print(f"error: cannot read {args.file}: {e}", file=sys.stderr)
         return 1
-    if args.format == "json":
-        print(json.dumps(r.to_dict(), indent=2))
-    else:
+    if args.format == "table":
         _print_scan_table(r)
-    return _findings_exit(r.findings)
+    else:
+        _emit_findings(args.format, r, r.findings, r.path)
+    return _findings_exit(r.findings, args.fail_on)
 
 
 def _cmd_baseline(args) -> int:
@@ -110,22 +134,20 @@ def _cmd_diff(args) -> int:
         print(f"error: invalid baseline JSON: {e}", file=sys.stderr)
         return 1
     findings = diff_baseline(r, base, key=args.key)
-    if args.format == "json":
-        print(json.dumps({
-            "file": r.path,
-            "sha256": r.sha256,
-            "findings": [f.to_dict() for f in findings],
-            "max_severity": max(
-                (f.severity for f in findings),
-                key=lambda s: SEVERITY_ORDER.get(s, 0), default="info"),
-        }, indent=2))
-    else:
+    if args.format == "table":
         print(f"file   : {r.path}")
         print(f"sha256 : {r.sha256}")
         for f in findings:
             print(f"[{f.severity.upper():<8}] {f.id}: {f.title}")
             print(f"         {f.detail}")
-    return _findings_exit(findings)
+    else:
+        _emit_findings(args.format, None, findings, r.path, sha256=r.sha256)
+    return _findings_exit(findings, args.fail_on)
+
+
+def _cmd_mcp(args) -> int:
+    from .mcp_server import serve
+    return serve()
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -138,8 +160,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument("--version", action="version",
                    version=f"{TOOL_NAME} {TOOL_VERSION}")
-    p.add_argument("--format", choices=["table", "json"], default="table",
+    p.add_argument("--format", choices=["table", "json", "sarif", "csv"],
+                   default="table",
                    help="output format (default: table)")
+    p.add_argument("--fail-on",
+                   choices=["info", "low", "medium", "high", "critical"],
+                   default="medium",
+                   help="exit 2 when a finding meets/exceeds this severity "
+                        "(default: medium)")
     sub = p.add_subparsers(dest="cmd", metavar="<command>")
 
     sp = sub.add_parser("scan", help="fingerprint + analyze a binary")
@@ -157,6 +185,9 @@ def build_parser() -> argparse.ArgumentParser:
     dp.add_argument("--key", default=None,
                     help="baseline entry name (default: basename of file)")
     dp.set_defaults(func=_cmd_diff)
+
+    mp = sub.add_parser("mcp", help="run as an MCP stdio server (needs [mcp] extra)")
+    mp.set_defaults(func=_cmd_mcp)
     return p
 
 

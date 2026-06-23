@@ -17,16 +17,22 @@
 
 ```bash
 pip install cognis-binhunt
-binhunt scan .            # → prioritized findings in seconds
+binhunt scan ./client.exe        # → fingerprint + packer/entropy findings in milliseconds
 ```
+
+`binhunt` is **passive and fully offline** — it reads a file off disk, parses
+the executable headers itself (no `objdump`, no `file`, no network), and prints a
+verdict. There is **no active/remote scanning** anywhere in the tool.
 
 ## Usage — step by step
 
-`binhunt` fingerprints a binary (format/arch/hashes/entropy/sections), flags packers, and diffs against a known-good baseline to detect tampering.
+`binhunt` fingerprints a binary (format / arch / sha256+md5 / overall + per-section Shannon entropy / section layout), flags packers and obfuscators, and diffs against a known-good baseline to detect tampering or trojanized clients.
 
-1. **Install** (Python 3.10+):
+1. **Install** (Python 3.10+, standard library only):
    ```bash
-   pip install -e .            # or: pipx install binhunt
+   pip install cognis-binhunt
+   # or from source:
+   git clone https://github.com/cognis-digital/binhunt && cd binhunt && pip install -e .
    ```
 2. **Scan a binary** for packers, entropy, and section layout:
    ```bash
@@ -39,11 +45,19 @@ binhunt scan .            # → prioritized findings in seconds
    ```
 4. **Read the output** as JSON (e.g. the worst severity, for gating):
    ```bash
-   binhunt scan ./client.exe --format json | jq .max_severity
+   binhunt --format json scan ./client.exe | jq .max_severity
    ```
-5. **Gate CI on tampering** — exit `2` on suspicious/mismatched findings (medium+), `0` when clean, `1` on error:
+5. **Emit SARIF** straight into GitHub code-scanning, or **CSV** for a spreadsheet:
+   ```bash
+   binhunt --format sarif scan ./client.exe > binhunt.sarif
+   binhunt --format csv   scan ./client.exe > findings.csv
+   ```
+6. **Gate CI on tampering** — exit `2` when the worst finding meets/exceeds the
+   threshold, `0` when clean, `1` on error. Tune the gate with `--fail-on`:
    ```yaml
-   - run: pip install -e . && binhunt diff ./client.exe --baseline baseline.json
+   - run: |
+       pip install cognis-binhunt
+       binhunt --fail-on high diff ./client.exe --baseline baseline.json
    ```
 
 
@@ -63,16 +77,19 @@ Pairs DIE-style packer detection with a baseline-diff workflow so studios can de
 <a name="features"></a>
 ## Features
 
-- ✅ Shannon Entropy
-- ✅ Fuzzy Fingerprint
-- ✅ Fuzzy Similarity
-- ✅ Detect Format
-- ✅ Section Entropies
-- ✅ Detect Packers
-- ✅ Fingerprint
-- ✅ Scan File
+- ✅ **Format + arch detection** — PE, ELF, Mach-O (incl. FAT), x86/x86-64/arm/arm64/riscv, parsed by binhunt's own header readers (no external tools)
+- ✅ **Cryptographic fingerprint** — sha256 + md5 of the whole file
+- ✅ **Fuzzy fingerprint** — alignment-tolerant block hashes that *localize where* two binaries differ, plus a `fuzzy_similarity()` score (0..1)
+- ✅ **Shannon entropy** — overall and **per-section** (bits/byte); high entropy ⇒ likely packed/encrypted
+- ✅ **Section parsing** — name, file offset, size, and entropy for every section/segment
+- ✅ **Packer / obfuscator detection** — section-name markers **and** raw signatures for UPX, ASPack, Petite, MPRESS, Themida, VMProtect, Enigma, NsPack, PELock, PECompact, yoda
+- ✅ **Baseline build + diff** — record a known-good JSON, then detect hash mismatch, size change, per-section entropy drift, and added/removed sections (catches trojanized / modded clients)
+- ✅ **Output formats** — `table` · `json` · **SARIF 2.1.0** (GitHub code-scanning) · **CSV**
+- ✅ **CI exit-code gate** — `--fail-on {info,low,medium,high,critical}` (default `medium`)
+- ✅ **MCP server** — `binhunt mcp` exposes `scan`/`baseline`/`diff` as tools
+- ✅ **Passive & offline** — reads one local file, never opens a socket
 - ✅ Runs on Linux/macOS/Windows · Docker · devcontainer
-- ✅ Ports in Python, JavaScript, Go, and Rust (`ports/`)
+- ✅ Ports in Python, JavaScript, Go, and Rust (`ports/`), byte-for-byte consistent on the demo fixture
 
 <div align="right"><a href="#top">↑ back to top</a></div>
 
@@ -82,23 +99,61 @@ Pairs DIE-style packer detection with a baseline-diff workflow so studios can de
 ```bash
 pip install cognis-binhunt
 binhunt --version
-binhunt scan .                       # scan current project
-binhunt scan . --format json         # machine-readable
-binhunt scan . --fail-on high        # CI gate (non-zero exit)
+binhunt scan ./client.exe                       # human-readable table
+binhunt --format json  scan ./client.exe        # machine-readable
+binhunt --format sarif scan ./client.exe        # GitHub code-scanning
+binhunt --fail-on high scan ./client.exe        # CI gate (exit 2 on high+)
 ```
 
 <div align="right"><a href="#top">↑ back to top</a></div>
 
 <a name="example"></a>
-## Example
+## Example — real output
+
+Scanning the committed demo binary (`demos/01-basic/sample.elf`, a minimal ELF
+with a deliberately high-entropy `.packed` section):
 
 ```text
-$ binhunt scan .
-  [HIGH    ] BIN-001  example finding             (./src/app.py)
-  [MEDIUM  ] BIN-002  another signal              (./config.yaml)
-
-  2 findings · risk score 5 · 38ms
+$ binhunt scan demos/01-basic/sample.elf
+file      : demos/01-basic/sample.elf
+format    : ELF  (x86-64)
+size      : 4505 bytes
+sha256    : c6d6ba0a71955b3df685d8362d910e008e2cef7d618ecf5849eab3db3e6c9fa6
+md5       : 81640e4eb8a915700d37ab146e22d779
+entropy   : 7.7834 bits/byte
+sections  :
+    name                offset        size   entropy
+    <unnamed>                0           0       0.0
+    .text                   64          64       0.0
+    .packed                128        4096       8.0
+    .shstrtab             4224          25    3.5737
+findings  :
+    [MEDIUM  ] HIGH_ENTROPY: High overall entropy
+             Entropy 7.7834 bits/byte suggests packing/encryption.
+    [MEDIUM  ] SECTION_ENTROPY: High-entropy section: .packed
+             entropy=8.0 size=4096; possible packed payload.
+verdict   : MEDIUM
+$ echo $?
+2
 ```
+
+### Worked example — catch a tampered client
+
+```text
+$ binhunt baseline ./good/client.exe -o baseline.json
+wrote baseline with 1 entry to baseline.json
+
+$ binhunt diff ./downloaded/client.exe --baseline baseline.json
+file   : ./downloaded/client.exe
+sha256 : 9f2c...e1
+[CRITICAL] HASH_MISMATCH: Binary differs from baseline
+         sha256 mismatch (baseline=3a7b9c01d2e4f5a6..., got=9f2c10ab33de77c1...). Fuzzy similarity=94%.
+[HIGH    ] SECTION_DRIFT: Section '.text' entropy changed
+         baseline=6.12 now=7.71 (delta=+1.590); possible code patch or injected payload.
+```
+
+The `94%` fuzzy similarity plus a single drifting section pinpoints a small,
+localized patch to `.text` rather than a wholesale replacement.
 
 <div align="right"><a href="#top">↑ back to top</a></div>
 
@@ -107,9 +162,19 @@ $ binhunt scan .
 
 ```mermaid
 flowchart LR
-  IN[target / manifest] --> P[binhunt<br/>checks + rules]
-  P --> OUT[findings (JSON / SARIF)]
+  IN[local executable<br/>PE / ELF / Mach-O] --> RD[read bytes]
+  RD --> FP[fingerprint<br/>sha256 · md5 · fuzzy]
+  RD --> HD[parse headers<br/>format · arch · sections]
+  HD --> EN[entropy<br/>overall + per-section]
+  RD --> PK[packer signatures]
+  FP --> FN[findings]
+  EN --> FN
+  PK --> FN
+  BL[(baseline.json)] -.diff.-> FN
+  FN --> OUT[table · JSON · SARIF · CSV]
 ```
+
+All boxes run in-process on local bytes — no subprocess, no socket.
 
 <div align="right"><a href="#top">↑ back to top</a></div>
 
@@ -188,9 +253,41 @@ PRs, new rules, and demo scenarios are welcome under the collaboration-pull mode
 
 > ### ⭐ If `binhunt` saved you time, **star it** — it genuinely helps others find it.
 
+## Edge / air-gap
+
+`binhunt` is **stdlib-only and self-contained** — no model downloads, no feed
+fetches, no telemetry. The wheel runs unchanged on a disconnected host:
+
+```bash
+# on a connected machine
+pip download cognis-binhunt -d ./wheels
+# copy ./wheels to the air-gapped host, then:
+pip install --no-index --find-links ./wheels cognis-binhunt
+binhunt --format sarif scan /mnt/usb/suspect.bin > finding.sarif
+```
+
+Baselines are plain JSON, so you can build a `baseline.json` on a trusted golden
+image, sign/transfer it, and run `binhunt diff` on the air-gapped fleet to prove
+integrity without either side ever reaching the network.
+
+## Scope, authorization & safety
+
+- **Defensive / authorized use only.** `binhunt` is for analyzing binaries **you
+  own or are authorized to inspect** (your own game/desktop client, build
+  artifacts, vendor drops under contract).
+- **Passive & offline by design.** It reads a local file and parses its headers
+  in-process. There is no active scanning, no remote target, no socket, no
+  exploit/payload behavior anywhere in the tool. Unit tests use only local
+  in-memory fixtures.
+- **No fabricated intel.** Findings are computed from the bytes on disk
+  (entropy, parsed sections, real packer markers) — there are no bundled
+  CVE/threat claims.
+- It is **not** a malware sandbox, an unpacker, or a deobfuscator; it flags and
+  fingerprints, it does not execute or modify the target.
+
 ## Interoperability
 
-`{}` composes with the 300+ tool Cognis suite — JSON in/out and a shared
+`binhunt` composes with the Cognis suite — JSON in/out and a shared
 OpenAI-compatible `/v1` backbone. See **[INTEROP.md](INTEROP.md)** for the
 suite map, composition patterns, and reference stacks.
 

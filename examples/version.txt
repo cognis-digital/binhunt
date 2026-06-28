@@ -1,0 +1,3 @@
+$ binhunt-emit --version
+
+binhunt 0.2.3

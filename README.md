@@ -24,6 +24,80 @@ binhunt scan ./client.exe        # → fingerprint + packer/entropy findings in 
 the executable headers itself (no `objdump`, no `file`, no network), and prints a
 verdict. There is **no active/remote scanning** anywhere in the tool.
 
+
+<!-- cognis:example:start -->
+## 🔎 Example output
+
+Real, reproducible output from the tool — runs offline:
+
+```console
+$ binhunt-emit --version
+binhunt 0.2.3
+```
+
+```console
+$ binhunt-emit --help
+usage: binhunt [-h] [--version] [--format {table,json,sarif,csv}]
+               [--fail-on {info,low,medium,high,critical}]
+               <command> ...
+
+Binary integrity scanner: fingerprint executables, detect packers, diff vs a known-good baseline.
+
+positional arguments:
+  <command>
+    scan                fingerprint + analyze a binary
+    baseline            build a known-good baseline JSON
+    diff                compare a binary against a baseline
+    mcp                 run as an MCP stdio server (needs [mcp] extra)
+
+options:
+  -h, --help            show this help message and exit
+  --version             show program's version number and exit
+  --format {table,json,sarif,csv}
+                        output format (default: table)
+  --fail-on {info,low,medium,high,critical}
+                        exit 2 when a finding meets/exceeds this severity
+                        (default: medium)
+
+examples:
+  # Fingerprint + packer/entropy report
+  binhunt scan ./client.exe
+
+  # Machine-readable output for CI / piping
+  binhunt scan ./client.exe --format json | jq .max_severity
+
+  # Record a known-good baseline, then verify a downloaded copy
+  binhunt baseline ./good/client.exe -o baseline.json
+  binhunt diff ./downloaded/client.exe --baseline baseline.json
+```
+
+> Blocks above are real `binhunt` output — reproduce them from a clone.
+
+**Sample result format** _(illustrative values — run on your own data for real findings):_
+
+```
+{
+"findings": [
+    {
+        "id": "1234567890",
+        "title": "Suspicious Network Traffic",
+        "description": "Potential malicious activity detected on port 443.",
+        "labels": ["network", "suspicious"],
+        "created_at": "2023-02-16T14:30:00Z"
+    },
+    {
+        "id": "2345678901",
+        "title": "Unusual File Access",
+        "description": "An unknown user accessed a sensitive file.",
+        "labels": ["file", "unusual"],
+        "created_at": "2023-02-16T14:31:00Z"
+    }
+]
+}
+```
+
+<!-- cognis:example:end -->
+
 ## Usage — step by step
 
 `binhunt` fingerprints a binary (format / arch / sha256+md5 / overall + per-section Shannon entropy / section layout), flags packers and obfuscators, and diffs against a known-good baseline to detect tampering or trojanized clients.

@@ -1,0 +1,34 @@
+$ binhunt-emit --help
+
+usage: binhunt [-h] [--version] [--format {table,json,sarif,csv}]
+               [--fail-on {info,low,medium,high,critical}]
+               <command> ...
+
+Binary integrity scanner: fingerprint executables, detect packers, diff vs a known-good baseline.
+
+positional arguments:
+  <command>
+    scan                fingerprint + analyze a binary
+    baseline            build a known-good baseline JSON
+    diff                compare a binary against a baseline
+    mcp                 run as an MCP stdio server (needs [mcp] extra)
+
+options:
+  -h, --help            show this help message and exit
+  --version             show program's version number and exit
+  --format {table,json,sarif,csv}
+                        output format (default: table)
+  --fail-on {info,low,medium,high,critical}
+                        exit 2 when a finding meets/exceeds this severity
+                        (default: medium)
+
+examples:
+  # Fingerprint + packer/entropy report
+  binhunt scan ./client.exe
+
+  # Machine-readable output for CI / piping
+  binhunt scan ./client.exe --format json | jq .max_severity
+
+  # Record a known-good baseline, then verify a downloaded copy
+  binhunt baseline ./good/client.exe -o baseline.json
+  binhunt diff ./downloaded/client.exe --baseline baseline.json

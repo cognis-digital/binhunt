@@ -1,0 +1,23 @@
+[2026-07-11 16:00:16] === enhance · binhunt · words=120000 loc>=10000 langs=9 push=True ===
+[2026-07-11 16:00:22] phase DOCS — longform 120000-word corpus -> docs/corpus/
+[2026-07-11 23:40:31] phase POLYGLOT — expanding to >= 10000 LOC across 9 languages
+[2026-07-11 23:41:05]   facets: ['binary_fingerprinter', 'packer_detector', 'obfuscator_finder', 'baseline_loader', 'binary_diff_engine', 'integrity_reporter']
+[2026-07-11 23:42:49]   +polyglot/python/binary_fingerprinter.py  (loc now ~3317)
+[2026-07-11 23:46:39]   +polyglot/rust/binary_fingerprinter.rs  (loc now ~3760)
+[2026-07-11 23:48:35]   +polyglot/typescript/binary_fingerprinter.ts  (loc now ~4094)
+[2026-07-11 23:50:32]   +polyglot/c/binary_fingerprinter.c  (loc now ~4493)
+[2026-07-11 23:52:27]   +polyglot/cpp/binary_fingerprinter.cpp  (loc now ~4867)
+[2026-07-11 23:54:22]   +polyglot/java/binary_fingerprinter.java  (loc now ~5262)
+[2026-07-11 23:56:16]   +polyglot/ruby/binary_fingerprinter.rb  (loc now ~5316)
+[2026-07-11 23:58:11]   +polyglot/csharp/binary_fingerprinter.cs  (loc now ~5779)
+[2026-07-12 00:00:06]   +polyglot/python/packer_detector.py  (loc now ~6201)
+[2026-07-12 00:01:27]   +polyglot/go/packer_detector.go  (loc now ~6510)
+[2026-07-12 00:03:12]   +polyglot/rust/packer_detector.rs  (loc now ~6914)
+[2026-07-12 00:05:08]   +polyglot/typescript/packer_detector.ts  (loc now ~7489)
+[2026-07-12 00:07:03]   +polyglot/c/packer_detector.c  (loc now ~7931)
+[2026-07-12 00:09:00]   +polyglot/cpp/packer_detector.cpp  (loc now ~8234)
+[2026-07-12 00:10:56]   +polyglot/java/packer_detector.java  (loc now ~8638)
+[2026-07-12 00:12:52]   +polyglot/ruby/packer_detector.rb  (loc now ~8998)
+[2026-07-12 00:14:48]   +polyglot/csharp/packer_detector.cs  (loc now ~9364)
+[2026-07-12 00:16:44]   +polyglot/python/obfuscator_finder.py  (loc now ~9760)
+[2026-07-12 00:18:13]   +polyglot/go/obfuscator_finder.go  (loc now ~10082)
